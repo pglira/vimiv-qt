@@ -8,7 +8,13 @@ import os
 from typing import List, Optional, Iterator, cast
 
 from vimiv.qt.core import Qt, QSize, QRect, Slot
-from vimiv.qt.widgets import QListWidget, QListWidgetItem, QStyle, QStyledItemDelegate
+from vimiv.qt.widgets import (
+    QListWidget,
+    QListWidgetItem,
+    QStyle,
+    QStyledItemDelegate,
+    QAbstractItemView,
+)
 from vimiv.qt.gui import QColor, QIcon
 
 from vimiv import api, utils, imutils, widgets
@@ -80,6 +86,8 @@ class ThumbnailView(
         QListWidget.__init__(self)
 
         self._paths: List[str] = []
+        self._mark_anchor_index: Optional[int] = None
+        self._suppress_center_on_scroll = False
 
         fail_pixmap = create_pixmap(
             color=styles.get("thumbnail.error.bg"),
@@ -145,7 +153,66 @@ class ThumbnailView(
     def clear(self):
         """Override clear to also empty paths."""
         self._paths = []
+        self._mark_anchor_index = None
         super().clear()
+
+    def mousePressEvent(self, event):
+        """Handle mouse press events and support ctrl/shift marking."""
+        index = -1
+        if event.button() == Qt.MouseButton.LeftButton:
+            item = self.itemAt(event.pos())
+            if item is not None:
+                index = self.row(item)
+            if self._mark_from_mouse(index, event.modifiers()):
+                event.accept()
+                return
+        super().mousePressEvent(event)
+        if index >= 0 and event.button() == Qt.MouseButton.LeftButton:
+            self._mark_anchor_index = index
+
+    def scrollTo(self, index, hint=QAbstractItemView.ScrollHint.EnsureVisible):
+        """Override scrollTo with plain QListWidget behavior.
+
+        This avoids implicit center-jumps on internal Qt selection changes (e.g. mouse
+        clicks). Programmatic centering is handled explicitly in _select_index.
+        """
+        QListWidget.scrollTo(self, index, hint)
+
+    def _mark_from_mouse(self, index: int, modifiers) -> bool:
+        """Handle marking via ctrl/shift mouse clicks.
+
+        Ctrl-click toggles the clicked thumbnail mark.
+        Shift-click marks all thumbnails between the anchor and the clicked one.
+
+        Args:
+            index: Index of the clicked thumbnail.
+            modifiers: Keyboard modifiers active during click.
+        Returns:
+            True if marking was handled, False otherwise.
+        """
+        ctrl = bool(modifiers & Qt.KeyboardModifier.ControlModifier)
+        shift = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
+        if index < 0 or not self._paths or not (ctrl or shift):
+            return False
+
+        self._suppress_center_on_scroll = True
+        try:
+            self._select_index(index)
+        finally:
+            self._suppress_center_on_scroll = False
+
+        if shift:
+            anchor = (
+                index if self._mark_anchor_index is None else self._mark_anchor_index
+            )
+            anchor = utils.clamp(anchor, 0, self.count() - 1)
+            lower, upper = sorted((anchor, index))
+            api.mark.mark(self._paths[lower : upper + 1], action=api.mark.Action.Mark)
+        else:
+            api.mark.mark([self._paths[index]], action=api.mark.Action.Toggle)
+
+        self._mark_anchor_index = index
+        return True
 
     @Slot(list)
     def _on_new_images_opened(self, paths: List[str]):
@@ -383,6 +450,12 @@ class ThumbnailView(
         _logger.debug("Selecting thumbnail number %d", index)
         index = utils.clamp(index, 0, self.count() - 1)
         self.setCurrentRow(index)
+        if api.settings.scroll_to_center.value and not self._suppress_center_on_scroll:
+            QListWidget.scrollTo(
+                self,
+                self.currentIndex(),
+                QAbstractItemView.ScrollHint.PositionAtCenter,
+            )
         if emit:
             synchronize.signals.new_thumbnail_path_selected.emit(self._paths[index])
 
