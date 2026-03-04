@@ -34,12 +34,15 @@ DEFAULT_OPTIONS = {
     "statusbar.info": "{base0c}",
     "statusbar.message_border": "2px solid",
     "statusbar.padding": "4",
+    # Mark
+    "mark.color": "{base0e}",
     # Thumbnail
     "thumbnail.font": "{font}",
     "thumbnail.fg": "{library.fg}",
     "thumbnail.bg": "{image.bg}",
     "thumbnail.padding": "20",
     "thumbnail.selected.bg": "{library.selected.bg}",
+    "thumbnail.marked.bg": "{mark.color}",
     "thumbnail.search.highlighted.bg": "{library.search.highlighted.bg}",
     "thumbnail.default.bg": "{statusbar.info}",
     "thumbnail.error.bg": "{statusbar.error}",
@@ -65,8 +68,6 @@ DEFAULT_OPTIONS = {
     # Manipulate image overlay
     "manipulate.image.border": "2px solid",
     "manipulate.image.border.color": "{base0c}",
-    # Mark
-    "mark.color": "{base0e}",
     # Keybindings popup
     "keybindings.bindings.color": "{keyhint.suffix_color}",
     "keybindings.highlight.color": "{mark.color}",

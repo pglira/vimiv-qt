@@ -103,7 +103,7 @@ def test_fail_set_thumbnail_setting_wrong_int():
 
 @pytest.mark.parametrize(
     "start, up, expected",
-    [(128, True, 256), (512, True, 512), (128, False, 64), (64, False, 64)],
+    [(128, True, 160), (512, True, 512), (128, False, 112), (64, False, 64)],
 )
 def test_step_thumbnail_size(start, up, expected):
     t = settings.ThumbnailSizeSetting("thumb", start)

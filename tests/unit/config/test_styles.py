@@ -165,3 +165,8 @@ def check_critical_error_handling(path):
 @pytest.mark.parametrize("name", ("name", "{name}"))
 def test_style_key(name):
     assert styles.Style.key(name) == "{name}"
+
+
+def test_default_style_contains_thumbnail_marked_background():
+    style = styles.create_default(save_to_file=False)
+    assert style["{thumbnail.marked.bg}"] == style["{mark.color}"]

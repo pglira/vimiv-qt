@@ -5,9 +5,11 @@
 import pytest
 
 from vimiv.qt.core import QSize
+from vimiv.qt.widgets import QStyle
 from vimiv.qt.gui import QIcon
 
-from vimiv.gui.thumbnail import ThumbnailItem
+from vimiv.config import styles
+from vimiv.gui.thumbnail import ThumbnailDelegate, ThumbnailItem
 
 
 @pytest.fixture()
@@ -18,9 +20,51 @@ def item(mocker):
     yield ThumbnailItem
 
 
+@pytest.fixture()
+def default_style():
+    """Fixture to ensure a loaded style for delegate tests."""
+    old_style = styles._style
+    styles._style = styles.create_default(save_to_file=False)
+    yield
+    styles._style = old_style
+
+
 def test_create_default_pixmap_once(item):
     """Ensure the default thumbnail icon is only created once."""
     size_hint = QSize(128, 128)
     for index in range(5):
         item(None, index, size_hint=size_hint)
     item.create_default_icon.assert_called_once()
+
+
+def test_marked_thumbnail_uses_marked_background(default_style):
+    delegate = ThumbnailDelegate(None)
+    item = type("Item", (), {"marked": True, "highlighted": False})()
+
+    color = delegate._get_background_color(item, QStyle.StateFlag.State_None)
+
+    assert color == delegate.marked_bg
+
+
+def test_marked_background_has_priority_over_search_highlight(default_style):
+    delegate = ThumbnailDelegate(None)
+    item = type("Item", (), {"marked": True, "highlighted": True})()
+
+    color = delegate._get_background_color(item, QStyle.StateFlag.State_None)
+
+    assert color == delegate.marked_bg
+
+
+def test_draw_marked_overlay_uses_visible_alpha_for_opaque_color(default_style, mocker):
+    delegate = ThumbnailDelegate(None)
+    painter = mocker.Mock()
+    option = mocker.Mock()
+    option.rect = mocker.Mock()
+    option.rect.adjusted.return_value = option.rect
+
+    delegate.marked_bg.setAlpha(255)
+    delegate._draw_marked_overlay(painter, option)
+
+    overlay_color = painter.setBrush.call_args_list[0][0][0]
+    assert overlay_color.alpha() == 72
+    assert painter.drawRect.call_count == 2

@@ -6,24 +6,30 @@ Feature: Zoom thumbnails.
 
     Scenario: Increase thumbnail size.
         When I run zoom in
-        Then the thumbnail size should be 256
+        Then the thumbnail size should be 160
 
     Scenario: Decrease thumbnail size.
         When I run zoom out
-        Then the thumbnail size should be 64
+        Then the thumbnail size should be 112
 
-    Scenario: Try to increase thumbnail size below limit.
-        # 256
+    Scenario: Increase thumbnail size multiple times.
+        # 160
         When I run zoom in
-        # 512
+        # 192
         And I run zoom in
-        # 512
+        # 224
         And I run zoom in
-        Then the thumbnail size should be 512
+        Then the thumbnail size should be 224
 
     Scenario: Try to decrease thumbnail size below limit.
-        # 64
+        # 112
         When I run zoom out
+        # 96
+        And I run zoom out
+        # 80
+        And I run zoom out
+        # 64
+        And I run zoom out
         # 64
         And I run zoom out
         Then the thumbnail size should be 64

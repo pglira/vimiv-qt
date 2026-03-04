@@ -276,17 +276,18 @@ class FloatSetting(NumberSetting):
 class ThumbnailSizeSetting(Setting):
     """Stores a thumbnail size setting.
 
-    This setting is stored as integer value which must be one of 64, 128, 256,
-    512.
+    This setting is stored as integer value which must be one of the predefined
+    thumbnail sizes.
     """
 
     typ = int
-    ALLOWED_VALUES = 64, 128, 256, 512
+    ALLOWED_VALUES = 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448, 512
 
     def convert(self, value: customtypes.IntStr) -> int:
         ivalue = super().convert(value)
         if ivalue not in self.ALLOWED_VALUES:
-            raise ValueError("Thumbnail size must be one of 64, 128, 256, 512")
+            allowed_values = ", ".join(str(v) for v in self.ALLOWED_VALUES)
+            raise ValueError(f"Thumbnail size must be one of {allowed_values}")
         return ivalue
 
     def step(self, up: bool = True) -> None:

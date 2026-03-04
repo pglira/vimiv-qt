@@ -438,9 +438,14 @@ class ThumbnailView(
 
     @api.status.module("{thumbnail-size}")
     def size(self):
-        """Current thumbnail size (small/normal/large/x-large)."""
+        """Current thumbnail size.
+
+        Legacy values are mapped to small/normal/large/x-large. Intermediate
+        values are shown in pixels.
+        """
+        value = self.iconSize().width()
         sizes = {64: "small", 128: "normal", 256: "large", 512: "x-large"}
-        return sizes[self.iconSize().width()]
+        return sizes.get(value, f"{value}px")
 
     @api.status.module("{thumbnail-index}")
     def current_index_statusbar(self) -> str:
@@ -483,7 +488,7 @@ class ThumbnailDelegate(QStyledItemDelegate):
         self.selection_bg = QColor(styles.get("thumbnail.selected.bg"))
         self.selection_bg_unfocus = QColor(styles.get("thumbnail.selected.bg.unfocus"))
         self.search_bg = QColor(styles.get("thumbnail.search.highlighted.bg"))
-        self.mark_bg = QColor(styles.get("mark.color"))
+        self.marked_bg = QColor(styles.get("thumbnail.marked.bg"))
         self.padding = int(styles.get("thumbnail.padding"))
 
     def paint(self, painter, option, model_index):
@@ -497,6 +502,8 @@ class ThumbnailDelegate(QStyledItemDelegate):
         item = self.parent().item(model_index.row())
         self._draw_background(painter, option, item)
         self._draw_pixmap(painter, option, item)
+        if item.marked:
+            self._draw_marked_overlay(painter, option)
 
     def _draw_background(self, painter, option, item):
         """Draw the background rectangle of the thumbnail.
@@ -547,25 +554,34 @@ class ThumbnailDelegate(QStyledItemDelegate):
         # Draw
         painter.drawPixmap(x, y, size.width(), size.height(), pixmap)
         painter.restore()
-        if item.marked:
-            self._draw_mark(painter, option, x + size.width(), y + size.height())
 
-    def _draw_mark(self, painter, option, x, y):
-        """Draw small rectangle as mark indicator if the image is marked.
+    def _draw_marked_overlay(self, painter, option):
+        """Draw a marked-state overlay on top of the thumbnail.
+
+        A translucent fill and border ensure the marked state stays visible even when
+        the thumbnail is currently selected or the image content is bright and busy.
 
         Args:
             painter: The QPainter.
             option: The QStyleOptionViewItem.
-            x: x-coordinate at which the pixmap ends.
-            y: y-coordinate at which the pixmap ends.
         """
-        # Try to set 5 % of width, reduce to padding if this is smaller
-        # At least 4px width
-        width = int(max(min(0.05 * option.rect.width(), self.padding), 4))
+        overlay_color = QColor(self.marked_bg)
+        if overlay_color.alpha() == 255:
+            overlay_color.setAlpha(104)
+
+        border_color = QColor(self.marked_bg)
+        if border_color.alpha() < 200:
+            border_color.setAlpha(220)
+
         painter.save()
-        painter.setBrush(self.mark_bg)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRect(x - width // 2, y - width // 2, width, width)
+        painter.setBrush(overlay_color)
+        painter.drawRect(option.rect)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(border_color)
+        border_width = 3
+        for offset in range(1, border_width + 1):
+            painter.drawRect(option.rect.adjusted(offset, offset, -offset, -offset))
         painter.restore()
 
     def _get_background_color(self, item, state):
@@ -581,6 +597,8 @@ class ThumbnailDelegate(QStyledItemDelegate):
             if api.modes.current() == api.modes.THUMBNAIL:
                 return self.selection_bg
             return self.selection_bg_unfocus
+        if item.marked:
+            return self.marked_bg
         if item.highlighted:
             return self.search_bg
         return self.bg

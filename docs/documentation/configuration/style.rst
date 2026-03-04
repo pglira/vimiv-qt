@@ -29,6 +29,9 @@ Creating your own style is easy:
 
 .. hint:: Refer to the created default style for all available options
 
+.. hint:: Marked thumbnails now use a background color instead of a small corner
+   square. You can customize this via ``thumbnail.marked.bg``.
+
 .. hint:: Defined style options can be referenced via ``new_option = {other_option}``,
    for example to use a different base color for mark-related things you can use
    ``mark.color = {base0a}``.
